@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seeding Dilution Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout: inputs on the left in three plain panels, a sticky "recipe" result on the right; stacks on phones. */
+:root {
+  --bg: #eef1f5;
+  --surface: #ffffff;
+  --fg: #161b26;
+  --muted: #5b6578;
+  --line: #d5dae3;
+  --accent: #3f3d8f;
+  --accent-fg: #ffffff;
+  --accent-soft: #e4e3f6;
+  --tint: #dbe3ec;
+  --warn: #7a4e00;
+  --warn-bg: #fdf1d6;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1219; --surface: #181c26; --fg: #e8ebf2; --muted: #98a1b3; --line: #2b3242;
+    --accent: #a7a5f5; --accent-fg: #14122e; --accent-soft: #272650; --tint: #2a3342;
+    --warn: #f0c36a; --warn-bg: #33290f; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1219; --surface: #181c26; --fg: #e8ebf2; --muted: #98a1b3; --line: #2b3242;
+  --accent: #a7a5f5; --accent-fg: #14122e; --accent-soft: #272650; --tint: #2a3342;
+  --warn: #f0c36a; --warn-bg: #33290f; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 15px/1.5 var(--font-body);
+  padding-block: 28px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1080px; margin: 0 auto; display: grid; gap: 24px; }
+header h1 { margin: 0 0 4px; font-size: 1.6rem; font-weight: 600; letter-spacing: -0.01em; text-wrap: balance; }
+header p { margin: 0; color: var(--muted); max-width: 60ch; }
+
+.grid { display: grid; gap: 20px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+@media (min-width: 880px) { .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 420px); } .results { position: sticky; top: 16px; } }
+
+.stack { display: grid; gap: 16px; min-width: 0; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px; display: grid; gap: 14px; min-width: 0; }
+.panel h2 { margin: 0; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); }
+.row { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.field { display: grid; gap: 5px; min-width: 0; align-content: start; }
+.field > label { font-size: 0.85rem; font-weight: 500; }
+.hint { font-size: 0.78rem; color: var(--muted); }
+
+.group { display: flex; min-width: 0; }
+input, select, button { font: inherit; color: inherit; }
+input[type="number"], select {
+  width: 100%; min-width: 0; padding: 8px 10px; background: var(--bg); border: 1px solid var(--line);
+  border-radius: 6px; font-family: var(--font-mono); font-size: 0.95rem; font-variant-numeric: tabular-nums;
+}
+select { font-family: var(--font-body); }
+.group input { border-radius: 6px 0 0 6px; }
+.group .unit { display: flex; align-items: center; padding: 0 10px; border: 1px solid var(--line); border-left: 0; border-radius: 0 6px 6px 0; background: var(--tint); color: var(--muted); font-size: 0.8rem; white-space: nowrap; font-family: var(--font-mono); }
+.group select.unit-select { width: auto; flex: 0 0 auto; border-left: 0; border-radius: 0 6px 6px 0; background: var(--tint); color: var(--muted); font-family: var(--font-mono); font-size: 0.8rem; padding: 0 8px; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+details.helper { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 0 18px; }
+details.helper summary { cursor: pointer; padding: 14px 0; font-weight: 500; }
+details.helper[open] summary { border-bottom: 1px solid var(--line); margin-bottom: 14px; }
+details.helper .inner { display: grid; gap: 14px; padding-bottom: 18px; }
+.readout { display: flex; flex-wrap: wrap; gap: 6px 20px; font-family: var(--font-mono); font-size: 0.85rem; color: var(--muted); }
+.readout b { color: var(--fg); font-weight: 500; }
+
+button.btn { padding: 8px 14px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-fg); font-weight: 500; cursor: pointer; justify-self: start; }
+button.btn.ghost { background: transparent; color: var(--accent); }
+button.btn:hover { filter: brightness(1.06); }
+
+/* Results */
+.results { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 20px; display: grid; gap: 18px; min-width: 0; }
+.results h2 { margin: 0; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); }
+.hero { display: grid; gap: 14px; }
+.take { display: grid; gap: 2px; }
+.take .label { font-size: 0.85rem; color: var(--muted); }
+.take .big { font-family: var(--font-mono); font-weight: 500; font-size: 2.2rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.take .big.accent { color: var(--accent); }
+.pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; }
+.tube { height: 14px; border-radius: 7px; background: var(--tint); overflow: hidden; display: flex; }
+.tube > i { display: block; height: 100%; background: var(--accent); min-width: 3px; }
+.tube-legend { display: flex; justify-content: space-between; gap: 8px; font-size: 0.76rem; color: var(--muted); font-family: var(--font-mono); }
+dl.facts { margin: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px 14px; font-size: 0.9rem; }
+dl.facts dt { color: var(--muted); }
+dl.facts dd { margin: 0; text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.notes { display: grid; gap: 8px; }
+.note { background: var(--warn-bg); color: var(--warn); border-radius: 6px; padding: 9px 12px; font-size: 0.86rem; }
+.empty { color: var(--muted); }
+pre.recipe { margin: 0; padding: 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; font: 0.8rem/1.55 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.copyrow { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.copystate { font-size: 0.82rem; color: var(--muted); }
+@media (prefers-reduced-motion: no-preference) { .tube > i { transition: width 0.25s ease; } }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Seeding Dilution Calculator</h1>
+    <p>Enter your cell count and the density you want per vessel. The calculator gives the volume of cell suspension to take and the medium to add, based on viable cells.</p>
+  </header>
+
+  <div class="grid">
+    <div class="stack">
+      <section class="panel" aria-labelledby="h-count">
+        <h2 id="h-count">Cell count</h2>
+        <div class="row">
+          <div class="field">
+            <label for="conc">Concentration of your suspension</label>
+            <div class="group"><input id="conc" type="number" inputmode="decimal" step="any" min="0" value="1.92"><select id="concUnit" class="unit-select" aria-label="Concentration unit">
+              <option value="1">cells/mL</option>
+              <option value="1000">×10³ cells/mL</option>
+              <option value="10000">×10⁴ cells/mL</option>
+              <option value="100000">×10⁵ cells/mL</option>
+              <option value="1000000" selected>×10⁶ cells/mL</option>
+              <option value="10000000">×10⁷ cells/mL</option>
+            </select></div>
+          </div>
+          <div class="field">
+            <label for="viab">Viability</label>
+            <div class="group"><input id="viab" type="number" inputmode="decimal" step="any" min="0" max="100" value="94.3"><span class="unit">%</span></div>
+          </div>
+        </div>
+        <div class="field">
+          <label for="avail">Suspension available (optional)</label>
+          <div class="group"><input id="avail" type="number" inputmode="decimal" step="any" min="0" placeholder="e.g. 4"><span class="unit">mL</span></div>
+          <span class="hint">Used to warn you if you do not have enough cells.</span>
+        </div>
+      </section>
+
+      <details class="helper" id="helper">
+        <summary>Convert hemocytometer counts</summary>
+        <div class="inner">
+          <div class="row">
+            <div class="field"><label for="hLive">Live cells counted</label><input id="hLive" type="number" inputmode="numeric" step="1" min="0" value="362"></div>
+            <div class="field"><label for="hDead">Dead cells counted (blue)</label><input id="hDead" type="number" inputmode="numeric" step="1" min="0" value="22"></div>
+            <div class="field"><label for="hSq">Large squares counted</label><input id="hSq" type="number" inputmode="numeric" step="1" min="1" value="4"></div>
+            <div class="field"><label for="hDil">Dilution factor</label><input id="hDil" type="number" inputmode="decimal" step="any" min="1" value="2"><span class="hint">1:1 with trypan blue is 2.</span></div>
+          </div>
+          <div class="readout" id="hOut" aria-live="polite"></div>
+          <button class="btn ghost" id="hUse" type="button">Use these values</button>
+        </div>
+      </details>
+
+      <section class="panel" aria-labelledby="h-target">
+        <h2 id="h-target">Target</h2>
+        <div class="row">
+          <div class="field">
+            <label for="mode">Seed by</label>
+            <select id="mode">
+              <option value="cm2">Cells per cm²</option>
+              <option value="vessel">Cells per well or flask</option>
+              <option value="ml">Cells per mL of medium</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="target" id="targetLabel">Density</label>
+            <div class="group"><input id="target" type="number" inputmode="decimal" step="any" min="0" value="20000"><span class="unit" id="targetUnit">cells/cm²</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="h-vessel">
+        <h2 id="h-vessel">Vessels</h2>
+        <div class="row">
+          <div class="field">
+            <label for="vessel">Vessel type</label>
+            <select id="vessel"></select>
+          </div>
+          <div class="field">
+            <label for="n">Number of vessels</label>
+            <input id="n" type="number" inputmode="numeric" step="1" min="1" value="12">
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="area">Growth area</label>
+            <div class="group"><input id="area" type="number" inputmode="decimal" step="any" min="0" value="9.6"><span class="unit">cm²</span></div>
+          </div>
+          <div class="field">
+            <label for="vol">Medium per vessel</label>
+            <div class="group"><input id="vol" type="number" inputmode="decimal" step="any" min="0" value="2"><span class="unit">mL</span></div>
+          </div>
+          <div class="field">
+            <label for="over">Extra for pipetting loss</label>
+            <div class="group"><input id="over" type="number" inputmode="decimal" step="any" min="0" value="10"><span class="unit">%</span></div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <aside class="results" aria-live="polite" aria-labelledby="h-res">
+      <h2 id="h-res">Seeding mix</h2>
+      <div id="resBody"></div>
+    </aside>
+  </div>
+</div>
+
+<script>
+(function () {
+  var VESSELS = [
+    { id: "96",   name: "96-well plate (per well)",  area: 0.32, vol: 0.1 },
+    { id: "48",   name: "48-well plate (per well)",  area: 0.95, vol: 0.3 },
+    { id: "24",   name: "24-well plate (per well)",  area: 1.9,  vol: 0.5 },
+    { id: "12",   name: "12-well plate (per well)",  area: 3.8,  vol: 1 },
+    { id: "6",    name: "6-well plate (per well)",   area: 9.6,  vol: 2 },
+    { id: "d35",  name: "35 mm dish",                area: 9.6,  vol: 2 },
+    { id: "d60",  name: "60 mm dish",                area: 21,   vol: 4 },
+    { id: "d100", name: "100 mm dish",               area: 55,   vol: 10 },
+    { id: "t25",  name: "T25 flask",                 area: 25,   vol: 5 },
+    { id: "t75",  name: "T75 flask",                 area: 75,   vol: 12 },
+    { id: "t175", name: "T175 flask",                area: 175,  vol: 25 },
+    { id: "s18-30",  name: "18-well slide, 30 µL (per well)",  area: 0.2, vol: 0.03, n: 18 },
+    { id: "s18-50",  name: "18-well slide, 50 µL (per well)",  area: 0.2, vol: 0.05, n: 18 },
+    { id: "s18-100", name: "18-well slide, 100 µL (per well)", area: 0.2, vol: 0.1,  n: 18 },
+    { id: "custom", name: "Custom", area: null, vol: null }
+  ];
+  var MODES = {
+    cm2:    { label: "Density", unit: "cells/cm²" },
+    vessel: { label: "Cells per vessel", unit: "cells/vessel" },
+    ml:     { label: "Density in medium", unit: "cells/mL" }
+  };
+  var SUP = { "0": "⁰", "1": "¹", "2": "²", "3": "³", "4": "⁴", "5": "⁵", "6": "⁶", "7": "⁷", "8": "⁸", "9": "⁹", "-": "⁻" };
+
+  var $ = function (id) { return document.getElementById(id); };
+  function num(id) { var v = parseFloat($(id).value); return isFinite(v) ? v : NaN; }
+  function sup(n) { return String(n).split("").map(function (c) { return SUP[c] || c; }).join(""); }
+
+  function sci(n) {
+    if (!isFinite(n)) return "–";
+    if (n === 0) return "0";
+    if (Math.abs(n) < 1e6) return Math.round(n).toLocaleString("en-US");
+    var e = Math.floor(Math.log10(Math.abs(n)));
+    var m = n / Math.pow(10, e);
+    if (parseFloat(m.toFixed(2)) >= 10) { m = m / 10; e += 1; }
+    return m.toFixed(2) + " × 10" + sup(e);
+  }
+  function fmtVol(ml) {
+    if (!isFinite(ml)) return "–";
+    if (ml < 0.995) {
+      var ul = ml * 1000;
+      return (ul < 10 ? ul.toFixed(1) : Math.round(ul)) + " µL";
+    }
+    return (ml >= 100 ? ml.toFixed(0) : ml >= 10 ? ml.toFixed(1) : ml.toFixed(2)) + " mL";
+  }
+  function fmtNum(n, d) { return isFinite(n) ? n.toFixed(d) : "–"; }
+
+  // Vessel presets
+  var sel = $("vessel");
+  VESSELS.forEach(function (v) {
+    var o = document.createElement("option");
+    o.value = v.id; o.textContent = v.name;
+    sel.appendChild(o);
+  });
+  sel.value = "6";
+
+  function applyVessel() {
+    var v = VESSELS.filter(function (x) { return x.id === sel.value; })[0];
+    if (v && v.area != null) { $("area").value = v.area; $("vol").value = v.vol; }
+    if (v && v.n) { $("n").value = v.n; }
+  }
+
+  function calc() {
+    var mode = $("mode").value;
+    $("targetLabel").textContent = MODES[mode].label;
+    $("targetUnit").textContent = MODES[mode].unit;
+
+    var conc = num("conc") * parseFloat($("concUnit").value), viab = num("viab") / 100;
+    var target = num("target"), area = num("area"), vol = num("vol");
+    var n = num("n"), over = num("over"), avail = num("avail");
+    if (!isFinite(over) || over < 0) over = 0;
+
+    var missing = [];
+    if (!(conc > 0)) missing.push("cell concentration");
+    if (!(viab > 0 && viab <= 1)) missing.push("viability between 0 and 100%");
+    if (!(target > 0)) missing.push("target density");
+    if (!(vol > 0)) missing.push("medium per vessel");
+    if (!(n >= 1)) missing.push("number of vessels");
+    if (mode === "cm2" && !(area > 0)) missing.push("growth area");
+
+    var body = $("resBody");
+    if (missing.length) {
+      body.innerHTML = '<p class="empty">Enter ' + missing.join(", ") + " to see the mix.</p>";
+      return;
+    }
+
+    var perVessel = mode === "cm2" ? target * area : mode === "vessel" ? target : target * vol;
+    var vEff = n * (1 + over / 100);
+    var totalCells = perVessel * vEff;
+    var totalVol = vol * vEff;
+    var viableConc = conc * viab;
+    var stockVol = totalCells / viableConc;
+    var medium = totalVol - stockVol;
+    var finalConc = perVessel / vol;
+    var dens = area > 0 ? perVessel / area : NaN;
+    var dilF = viableConc / finalConc;
+    var tooDilute = medium < 0;
+    var stockPct = Math.max(0, Math.min(100, (stockVol / totalVol) * 100));
+
+    var notes = [];
+    if (tooDilute) {
+      notes.push("Your suspension is more dilute than the target. Pellet the cells and resuspend them in " + fmtVol(totalVol) + " or less of medium, then recount.");
+    }
+    if (!tooDilute && stockVol < 0.002) {
+      notes.push("Taking " + fmtVol(stockVol) + " is hard to pipette accurately. Make an intermediate dilution first, for example 1:10.");
+    }
+    if (isFinite(avail) && avail > 0 && stockVol > avail) {
+      var maxV = Math.floor((avail * viableConc) / (perVessel * (1 + over / 100)));
+      notes.push("You need " + fmtVol(stockVol) + " of suspension but have " + fmtVol(avail) + ". That is enough for about " + maxV + " vessel" + (maxV === 1 ? "" : "s") + " with the extra volume included.");
+    }
+    if (viab < 0.8) {
+      notes.push("Viability is below 80%. Attachment and growth after seeding may be reduced.");
+    }
+
+    var stockTxt = fmtVol(stockVol);
+    var medTxt = tooDilute ? "0 mL" : fmtVol(medium);
+    var perVesselVol = fmtVol(vol);
+    var recipe =
+      "Seed " + n + " vessel" + (n === 1 ? "" : "s") + " (" + over + "% extra, " + fmtNum(vEff, 1) + " prepared)\n" +
+      "Target: " + sci(perVessel) + " viable cells per vessel" + (isFinite(dens) ? " (" + sci(dens) + " /cm²)" : "") + "\n" +
+      "Mix " + stockTxt + " of cell suspension with " + medTxt + " of medium\n" +
+      "Total " + fmtVol(totalVol) + ", add " + perVesselVol + " to each vessel";
+
+    body.innerHTML =
+      '<div class="hero">' +
+        '<div class="pair">' +
+          '<div class="take"><span class="label">Cell suspension</span><span class="big accent">' + stockTxt + '</span></div>' +
+          '<div class="take"><span class="label">Add medium</span><span class="big">' + medTxt + '</span></div>' +
+        '</div>' +
+        '<div><div class="tube" role="img" aria-label="Share of the mix that is cell suspension"><i style="width:' + stockPct.toFixed(1) + '%"></i></div>' +
+        '<div class="tube-legend"><span>suspension ' + stockPct.toFixed(1) + '%</span><span>total ' + fmtVol(totalVol) + '</span></div></div>' +
+      '</div>' +
+      (notes.length ? '<div class="notes">' + notes.map(function (t) { return '<div class="note">' + t + '</div>'; }).join("") + '</div>' : '') +
+      '<dl class="facts">' +
+        '<dt>Viable cells in suspension</dt><dd>' + sci(viableConc) + ' /mL</dd>' +
+        '<dt>Viable cells per vessel</dt><dd>' + sci(perVessel) + '</dd>' +
+        '<dt>Vessels prepared (with extra)</dt><dd>' + fmtNum(vEff, 1) + '</dd>' +
+        '<dt>Total viable cells needed</dt><dd>' + sci(totalCells) + '</dd>' +
+        '<dt>Final density in medium</dt><dd>' + sci(finalConc) + ' /mL</dd>' +
+        (isFinite(dens) ? '<dt>Final density on surface</dt><dd>' + sci(dens) + ' /cm²</dd>' : '') +
+        '<dt>Dilution of suspension</dt><dd>' + (dilF >= 1 ? '1 : ' + fmtNum(dilF, dilF < 10 ? 2 : 1) : 'none') + '</dd>' +
+      '</dl>' +
+      '<div class="stack" style="gap:10px"><pre class="recipe" id="recipe"></pre>' +
+        '<div class="copyrow"><button class="btn ghost" id="copyBtn" type="button">Copy recipe</button><span class="copystate" id="copyState"></span></div></div>';
+    $("recipe").textContent = recipe;
+    $("copyBtn").addEventListener("click", copyRecipe);
+  }
+
+  function copyRecipe() {
+    var el = $("recipe"), st = $("copyState");
+    function fallback() {
+      var r = document.createRange(); r.selectNodeContents(el);
+      var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+      st.textContent = "Selected. Press Ctrl+C or ⌘C to copy.";
+    }
+    try {
+      navigator.clipboard.writeText(el.textContent).then(function () { st.textContent = "Copied."; }, fallback);
+    } catch (e) { fallback(); }
+  }
+
+  // Hemocytometer helper
+  var hLast = null;
+  function hemo() {
+    var live = num("hLive"), dead = num("hDead"), sq = num("hSq"), dil = num("hDil");
+    var out = $("hOut");
+    if (!(live >= 0) || !(dead >= 0) || !(sq >= 1) || !(dil >= 1) || live + dead === 0) {
+      out.innerHTML = "Enter your counts to see the concentration."; hLast = null; return;
+    }
+    var total = live + dead;
+    var totalConc = (total / sq) * dil * 1e4;
+    var liveConc = (live / sq) * dil * 1e4;
+    var v = live / total;
+    hLast = { conc: totalConc, viab: v * 100 };
+    out.innerHTML =
+      "<span>Total <b>" + sci(totalConc) + "</b> /mL</span>" +
+      "<span>Live <b>" + sci(liveConc) + "</b> /mL</span>" +
+      "<span>Viability <b>" + (v * 100).toFixed(1) + "%</b></span>";
+  }
+
+  // Wiring
+  sel.addEventListener("change", function () { applyVessel(); calc(); });
+  ["area", "vol"].forEach(function (id) {
+    $(id).addEventListener("input", function () { sel.value = "custom"; });
+  });
+  ["conc", "concUnit", "viab", "avail", "mode", "target", "n", "area", "vol", "over"].forEach(function (id) {
+    $(id).addEventListener("input", calc);
+    $(id).addEventListener("change", calc);
+  });
+  ["hLive", "hDead", "hSq", "hDil"].forEach(function (id) { $(id).addEventListener("input", hemo); });
+  $("hUse").addEventListener("click", function () {
+    if (!hLast) return;
+    var units = [1e7, 1e6, 1e5, 1e4, 1e3], u = 1e3;
+    for (var k = 0; k < units.length; k++) { if (hLast.conc / units[k] >= 1) { u = units[k]; break; } }
+    $("concUnit").value = String(u);
+    $("conc").value = parseFloat((hLast.conc / u).toPrecision(4));
+    $("viab").value = parseFloat(hLast.viab.toFixed(1));
+    calc();
+  });
+
+  hemo();
+  calc();
+})();
+</script>
+</body>
+</html>
